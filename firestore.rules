@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      // Keep this list in sync with the ADMIN_EMAILS array near the top
+      // of index.html. Add Hunter's, Preston's, and Traci's emails here
+      // once you have them.
+      return request.auth != null && request.auth.token.email in [
+        'benjamin.stanton.31@gmail.com'
+      ];
+    }
+
+    match /applications/{appId} {
+      allow create: if true;          // anyone can submit an application
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /mentor_signups/{id} {
+      allow create: if true;          // anyone can submit "Become a mentor"
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

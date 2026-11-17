@@ -1,0 +1,1947 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>UM Vantage</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
+  // ---- Firebase project config ----
+  // From the Firebase console: Project settings > General > Your apps > the
+  // web app's config object. Safe to leave visible in client code.
+  const firebaseConfig = {
+    apiKey: "REPLACE_WITH_YOUR_API_KEY",
+    authDomain: "consulting-project-c7b41.firebaseapp.com",
+    projectId: "consulting-project-c7b41",
+    storageBucket: "REPLACE_WITH_YOUR_STORAGE_BUCKET",
+    messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
+    appId: "REPLACE_WITH_YOUR_APP_ID",
+  };
+  // Wrapped defensively: if the Firebase SDK fails to load (flaky network,
+  // an ad/script blocker) the rest of the page still renders and the
+  // apply/browse flow still works locally — saving and the live admin
+  // dashboard just won't be available until Firebase is reachable.
+  window.VantageFirebase = { db: null, auth: null, ADMIN_EMAILS: [], ready: false };
+  try {
+    firebase.initializeApp(firebaseConfig);
+    window.VantageFirebase = {
+      db: firebase.firestore(),
+      auth: firebase.auth(),
+      // Google accounts allowed to open the admin dashboard. Add teammates
+      // and Traci's email here as needed.
+      ADMIN_EMAILS: [
+        "benjamin.stanton.31@gmail.com",
+      ],
+      ready: true,
+    };
+  } catch (e) {
+    console.error("Firebase failed to initialize:", e);
+  }
+</script>
+<style>
+  :root {
+    --paper: #faf6f2;
+    --paper-raised: #ffffff;
+    --ink: #241a1c;
+    --ink-soft: #6b5c58;
+    --line: #e6dbd4;
+    --maroon: #7a2331;
+    --maroon-dark: #591520;
+    --maroon-ink: #ffffff;
+    --gold: #b4872b;
+    --gold-soft: #f3e6c9;
+    --good: #3f7a52;
+    --good-soft: #e2efe4;
+    --bad: #a3302f;
+    --shadow: 0 1px 2px rgba(89, 21, 32, 0.06), 0 8px 24px -12px rgba(89, 21, 32, 0.18);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1c1517;
+      --paper-raised: #261c1f;
+      --ink: #f3e9e5;
+      --ink-soft: #b9a8a2;
+      --line: #3a2c2c;
+      --maroon: #d97a89;
+      --maroon-dark: #b85a6a;
+      --maroon-ink: #2a1013;
+      --gold: #d8b464;
+      --gold-soft: #3a2f18;
+      --good: #7fbf94;
+      --good-soft: #1d2e21;
+      --bad: #ef8e8c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1c1517;
+    --paper-raised: #261c1f;
+    --ink: #f3e9e5;
+    --ink-soft: #b9a8a2;
+    --line: #3a2c2c;
+    --maroon: #d97a89;
+    --maroon-dark: #b85a6a;
+    --maroon-ink: #2a1013;
+    --gold: #d8b464;
+    --gold-soft: #3a2f18;
+    --good: #7fbf94;
+    --good-soft: #1d2e21;
+    --bad: #ef8e8c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 28px;
+    margin: 0;
+  }
+  h1, h2, h3, .display {
+    font-family: "Fraunces", Georgia, serif;
+    text-wrap: balance;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 6px;
+  }
+  .mark {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(155deg, var(--maroon), var(--maroon-dark));
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+  }
+  .mark svg { display: block; }
+  .masthead h1 {
+    font-size: 1.55rem;
+    margin: 0;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+  }
+  .masthead h1 .van { color: var(--maroon); }
+  .masthead h1 .div { color: var(--gold); font-weight: 500; margin: 0 3px; }
+  .masthead h1 .tage { color: var(--ink); }
+  .masthead .home-btn {
+    margin-left: auto;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1.5px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 13px;
+    cursor: pointer;
+  }
+  .masthead .home-btn:hover { border-color: var(--maroon); color: var(--maroon); }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 4px;
+  }
+  .process-line {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 8px 0 22px;
+  }
+  .process-line b { color: var(--maroon); font-weight: 600; }
+  .process-line .arrow { color: var(--gold); }
+
+  /* ---------- Panels ---------- */
+  .panel {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 20px; }
+  .panel h2 { font-size: 1.05rem; margin: 0 0 4px; }
+  .panel .hint { color: var(--ink-soft); font-size: 0.85rem; margin: 0 0 16px; }
+
+  /* ---------- Screen transitions ---------- */
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes slideFwd { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  @keyframes slideBack { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+  .screen-in { animation: rise .4s cubic-bezier(.2,.8,.2,1) both; }
+  .enter-fwd { animation: slideFwd .32s cubic-bezier(.2,.8,.2,1) both; }
+  .enter-back { animation: slideBack .32s cubic-bezier(.2,.8,.2,1) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .screen-in, .enter-fwd, .enter-back { animation: none; }
+  }
+
+  /* ---------- Welcome screen ---------- */
+  .hello {
+    padding: 40px 28px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hello::before {
+    content: "";
+    position: absolute;
+    right: -80px; top: -80px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--gold) 22%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .hello .wave {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 10px;
+  }
+  .hello h2 {
+    font-size: clamp(2rem, 6vw, 2.9rem);
+    line-height: 1.05;
+    margin: 0 0 14px;
+    max-width: 16ch;
+  }
+  .hello h2 em { font-style: normal; color: var(--maroon); }
+  .hello .intro {
+    color: var(--ink-soft);
+    font-size: 1.02rem;
+    line-height: 1.55;
+    max-width: 52ch;
+    margin: 0 0 26px;
+  }
+  .hello-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 28px;
+    padding: 0;
+    list-style: none;
+  }
+  .hello-facts li { max-width: 340px; }
+  .hello-facts li {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 16px 14px;
+    border-radius: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    font-size: 0.92rem;
+    line-height: 1.4;
+  }
+  .hello-facts .n {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--maroon);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .hello-facts .s { color: var(--ink-soft); display: block; font-size: 0.78rem; margin-top: 3px; }
+
+  /* ---------- Buttons ---------- */
+  .btn-primary {
+    background: var(--maroon);
+    color: var(--maroon-ink);
+    border: none;
+    border-radius: 12px;
+    padding: 13px 22px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: background .15s, transform .1s, opacity .15s;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--maroon-dark); }
+  .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  .btn-primary.big { font-size: 1.02rem; padding: 15px 28px; }
+  .btn-primary.full { width: 100%; }
+  .btn-text {
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+    padding: 10px 8px;
+    border-radius: 8px;
+  }
+  .btn-text:hover { color: var(--maroon); }
+  button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* ---------- Survey ---------- */
+  .survey { padding: 26px 24px 20px; }
+  .progress-wrap { margin-bottom: 24px; }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .progress { display: flex; gap: 6px; }
+  .progress .seg {
+    flex: 1;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--line);
+    transition: background .3s;
+  }
+  .progress .seg.done { background: var(--maroon); }
+  .progress .seg.current { background: var(--gold); }
+
+  .q-title {
+    font-size: clamp(1.4rem, 4vw, 1.8rem);
+    margin: 0 0 6px;
+    outline: none;
+  }
+  .q-sub { color: var(--ink-soft); font-size: 0.92rem; margin: 0 0 20px; }
+
+  .opt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px;
+  }
+  .opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1.5px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .1s, box-shadow .15s;
+  }
+  .opt:hover { border-color: color-mix(in srgb, var(--maroon) 55%, var(--line)); }
+  .opt:active { transform: scale(0.99); }
+  .opt[aria-pressed="true"] {
+    border-color: var(--maroon);
+    background: color-mix(in srgb, var(--maroon) 8%, var(--paper-raised));
+    box-shadow: inset 0 0 0 1px var(--maroon);
+  }
+  .opt-check {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    border: 1.5px solid var(--line);
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
+  }
+  .single .opt-check { border-radius: 50%; }
+  .opt[aria-pressed="true"] .opt-check {
+    background: var(--maroon);
+    border-color: var(--maroon);
+  }
+  .opt-check svg { opacity: 0; transition: opacity .15s; }
+  .opt[aria-pressed="true"] .opt-check svg { opacity: 1; }
+  .opt .t { display: block; font-size: 0.95rem; font-weight: 600; }
+  .opt .d { display: block; font-size: 0.8rem; color: var(--ink-soft); margin-top: 2px; line-height: 1.35; }
+
+  .survey-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .survey-nav .spacer { flex: 1; }
+  .survey-nav .count { font-size: 0.8rem; color: var(--ink-soft); }
+
+  /* ---------- Results filter dropdowns ---------- */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .filter-bar .lbl {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-right: 2px;
+  }
+  .filter-bar .grow { flex: 1; }
+  .fdrop { position: relative; }
+  .fdrop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 260px;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 9px 12px 9px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .fdrop-btn:hover { border-color: var(--maroon); }
+  .fdrop-btn .k { color: var(--ink-soft); font-weight: 500; }
+  .fdrop-btn .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fdrop-btn.active {
+    border-color: var(--maroon);
+    background: color-mix(in srgb, var(--maroon) 8%, var(--paper-raised));
+    color: var(--maroon);
+  }
+  .fdrop-btn.active .k { color: var(--maroon); opacity: 0.75; }
+  .fdrop-btn .chev { flex-shrink: 0; transition: transform .15s; }
+  .fdrop.open .chev { transform: rotate(180deg); }
+  .fdrop-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 30;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px -8px rgba(0,0,0,0.25);
+    padding: 6px;
+  }
+  .fdrop-menu.align-right { left: auto; right: 0; }
+  .fdrop-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .fdrop-item:hover { background: color-mix(in srgb, var(--maroon) 7%, transparent); }
+  .fdrop-menu.single .opt-check { border-radius: 50%; }
+  .fdrop-item[aria-checked="true"] .opt-check { background: var(--maroon); border-color: var(--maroon); }
+  .fdrop-item[aria-checked="true"] .opt-check svg { opacity: 1; }
+  .fdrop-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--line);
+    margin-top: 4px;
+    padding: 4px 2px 0;
+  }
+  .fdrop-foot .btn-text { font-size: 0.8rem; padding: 8px; }
+
+  /* ---------- Result cards ---------- */
+  .results-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 28px 0 14px;
+  }
+  .results-head h2 { margin: 0; font-size: 1.15rem; }
+  .results-head .count { color: var(--ink-soft); font-size: 0.82rem; }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+  }
+  .card-top { display: flex; gap: 14px; align-items: flex-start; }
+  .avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Fraunces", serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #fff;
+  }
+  .card-id { flex: 1; min-width: 0; }
+  .card-id .name { font-size: 1.05rem; font-weight: 700; margin: 0; }
+  .card-id .role { font-size: 0.83rem; color: var(--ink-soft); margin: 2px 0 0; }
+  .card-id .loc { font-size: 0.78rem; color: var(--ink-soft); margin: 2px 0 0; }
+  .match-badge { flex-shrink: 0; text-align: right; }
+  .match-badge .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--maroon);
+    line-height: 1;
+  }
+  .match-badge .lbl {
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .bar-track { height: 6px; border-radius: 999px; background: var(--line); margin: 14px 0 12px; overflow: hidden; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--gold), var(--maroon));
+    width: 0%;
+    transition: width .6s cubic-bezier(.2,.8,.2,1);
+  }
+  .why { font-size: 0.85rem; color: var(--ink-soft); margin: 0 0 12px; line-height: 1.5; }
+  .why b { color: var(--ink); font-weight: 600; }
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tag {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: var(--gold-soft);
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  .card-contact { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+  .card-contact .contact-link { font-size: 0.85rem; color: var(--maroon); text-decoration: none; font-weight: 600; }
+  .card-contact .contact-link:hover { text-decoration: underline; }
+  .card-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .btn-ghost, .btn-req {
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1.5px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+  }
+  .btn-ghost:hover { border-color: var(--maroon); }
+  .btn-req { border-color: var(--maroon); color: var(--maroon); }
+  .btn-req:hover { background: color-mix(in srgb, var(--maroon) 10%, transparent); }
+
+  .slot-picker { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .slot-picker .slot-label { width: 100%; font-size: 0.78rem; color: var(--ink-soft); margin-bottom: 2px; }
+  .slot-btn {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .slot-btn:hover { border-color: var(--maroon); }
+  .msg-compose { margin-top: 12px; }
+  .msg-compose textarea {
+    width: 100%; font-family: inherit; font-size: 0.85rem; color: var(--ink);
+    background: var(--paper); border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; resize: vertical; min-height: 60px; margin-bottom: 8px;
+  }
+  .confirm-box {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--good-soft);
+    border: 1px solid var(--good);
+    color: var(--good);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .rank-toggle {
+    width: 100%;
+    background: transparent;
+    border: 1.5px dashed var(--line);
+    border-radius: 12px;
+    padding: 13px 18px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--maroon);
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .rank-toggle:hover { border-color: var(--maroon); background: color-mix(in srgb, var(--maroon) 6%, transparent); }
+  .rank-list {
+    margin-top: 14px;
+    max-height: 480px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--paper-raised);
+    box-shadow: var(--shadow);
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.85rem;
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-row .rnum { font-family: "JetBrains Mono", monospace; color: var(--ink-soft); font-size: 0.78rem; width: 26px; flex-shrink: 0; }
+  .rank-row .ravatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Fraunces", serif; font-weight: 600; font-size: 0.72rem; color: #fff;
+  }
+  .rank-row .rinfo { flex: 1; min-width: 0; }
+  .rank-row .rname { font-weight: 600; }
+  .rank-row .rrole { font-size: 0.74rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .rank-row .rpct { font-family: "JetBrains Mono", monospace; font-size: 0.82rem; font-weight: 700; color: var(--maroon); flex-shrink: 0; }
+  .rank-row .rview {
+    font-family: inherit; font-size: 0.76rem; font-weight: 600; color: var(--maroon);
+    background: transparent; border: 1.5px solid var(--line); border-radius: 7px;
+    padding: 5px 9px; cursor: pointer; flex-shrink: 0;
+  }
+  .rank-row .rview:hover { border-color: var(--maroon); }
+  .rank-expand { padding: 0 16px 16px; border-bottom: 1px solid var(--line); }
+  .rank-expand:last-child { border-bottom: none; }
+
+  /* ---------- Feedback + dashboard ---------- */
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; }
+  .field textarea, .field input[type="text"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 44px;
+  }
+  .field textarea:focus, .field input[type="text"]:focus {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+    border-color: var(--maroon);
+  }
+  .feedback-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--good);
+    font-weight: 600;
+    margin-top: 10px;
+  }
+  .feedback-status.warn { color: var(--gold); }
+  .feedback-status .x {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--good-soft);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .dash-sub { font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); margin: 18px 0 8px; }
+  .dash-sub:first-of-type { margin-top: 0; }
+  .dash-item { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.85rem; }
+  .dash-item:last-child { border-bottom: none; }
+  .dash-item .top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .dash-item .who { font-weight: 600; }
+  .dash-item .when { font-size: 0.72rem; color: var(--ink-soft); flex-shrink: 0; }
+  .dash-item .body { color: var(--ink-soft); margin-top: 3px; line-height: 1.5; }
+  .dash-empty { font-size: 0.85rem; color: var(--ink-soft); padding: 6px 0; }
+  .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--good);
+    margin-right: 6px;
+  }
+
+  .footnote {
+    margin-top: 30px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 0.76rem;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+
+  @media (max-width: 520px) {
+    .hello { padding: 30px 20px 24px; }
+    .survey { padding: 22px 18px 16px; }
+    .survey-nav .count { width: 100%; order: -1; }
+    .filter-bar .grow { display: none; }
+    .fdrop-btn { max-width: 100%; }
+  }
+
+  [hidden] { display: none !important; }
+
+
+  /* ---------- Shared across pages: headings, lede, generic hint ---------- */
+  h1 {
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
+    line-height: 1.15;
+    margin: 22px 0 8px;
+    max-width: 20ch;
+  }
+  .lede { color: var(--ink-soft); max-width: 58ch; margin: 0 0 26px; line-height: 1.5; }
+  p.hint.standalone { color: var(--ink-soft); font-size: 0.9rem; margin: 0 0 18px; }
+
+  /* ---------- Home page CTA cards ---------- */
+  .page-cta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .cta-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--paper-raised);
+    border: 1.5px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 22px 20px;
+    box-shadow: var(--shadow);
+    transition: border-color .15s, transform .1s;
+  }
+  .cta-card:hover { border-color: var(--maroon); }
+  .cta-card:active { transform: scale(0.99); }
+  .cta-card.alt { border-color: var(--gold); }
+  .cta-card.alt:hover { border-color: var(--maroon); }
+  .cta-title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--ink);
+  }
+  .cta-desc { color: var(--ink-soft); font-size: 0.86rem; line-height: 1.45; }
+  .cta-arrow { color: var(--maroon); font-weight: 600; font-size: 0.85rem; margin-top: 6px; }
+
+  /* ---------- Home: key dates + QR ---------- */
+  .home-lower {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  @media (max-width: 760px) { .home-lower { grid-template-columns: 1fr; } }
+  .dates-panel h3, .qr-panel h3 {
+    margin: 0 0 14px;
+    font-family: "Fraunces", Georgia, serif;
+    font-size: 1.02rem;
+    font-weight: 600;
+  }
+  .dates-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .date-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--paper);
+  }
+  .date-chip {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--maroon);
+    background: var(--gold-soft);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+    min-width: 76px;
+    line-height: 1.2;
+  }
+  .date-chip .tbd { display: block; font-size: 0.68rem; color: var(--ink-soft); font-weight: 600; margin-top: 2px; }
+  .date-row b { display: block; font-size: 0.92rem; }
+  .date-row span.d-desc { color: var(--ink-soft); font-size: 0.82rem; }
+  .qr-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .qr-panel .qr-box {
+    width: 148px;
+    height: 148px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    background: #fff;
+    padding: 8px;
+    margin-bottom: 12px;
+  }
+  .qr-panel .qr-box svg { width: 100%; height: 100%; display: block; }
+  .qr-panel p { color: var(--ink-soft); font-size: 0.8rem; line-height: 1.4; margin: 0; }
+  .qr-panel .qr-link { color: var(--maroon); font-weight: 600; font-size: 0.78rem; margin-top: 8px; word-break: break-all; }
+
+#page-become-mentor .layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
+@media (max-width:820px) {#page-become-mentor .layout{grid-template-columns:1fr}}
+#page-become-mentor .steps{display:flex;gap:8px;margin-bottom:22px;padding:0;list-style:none}
+#page-become-mentor .steps li{flex:1;font-size:.85rem;color:var(--soft);border-top:3px solid var(--line);padding-top:8px}
+#page-become-mentor .steps li.on{color:var(--ink);border-color:var(--maroon);font-weight:600}
+#page-become-mentor .steps li.done{border-color:var(--gold)}
+label.l,legend{display:block;font-weight:600;font-size:.9rem;margin-bottom:6px;padding:0}
+fieldset{border:0;margin:0 0 18px;padding:0;min-width:0}
+input[type=text],input[type=email],select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{resize:vertical;min-height:96px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px) {.row{grid-template-columns:1fr}}
+.err{color:var(--bad);font-size:.82rem;margin-top:4px}
+input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{border-color:var(--bad)}
+#page-become-mentor .opts{display:flex;flex-direction:column;gap:8px}
+#page-become-mentor .opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;cursor:pointer}
+#page-become-mentor .opt:has(input:checked){border-color:var(--maroon);background:color-mix(in srgb,var(--maroon) 8%,transparent)}
+#page-become-mentor .opt input{accent-color:var(--maroon);margin-top:4px}
+#page-become-mentor .opt b{display:block;font-size:.95rem}
+#page-become-mentor .opt span span{font-size:.82rem;color:var(--soft)}
+#page-become-mentor .chips{display:flex;flex-wrap:wrap;gap:8px}
+#page-become-mentor .chip{position:relative}
+#page-become-mentor .chip input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+#page-become-mentor .chip label{display:block;padding:8px 14px;border:1.5px solid var(--line);border-radius:999px;font-size:.88rem;cursor:pointer}
+#page-become-mentor .chip input:checked+label{background:var(--maroon);border-color:var(--maroon);color:var(--on-maroon)}
+#page-become-mentor .chip input:focus-visible+label{outline:2px solid var(--gold);outline-offset:2px}
+#page-become-mentor .grid{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
+#page-become-mentor .grid th{font-size:.8rem;font-weight:600;color:var(--soft);padding:2px 0}
+#page-become-mentor .grid th.t{text-align:right;padding-right:6px;width:74px;white-space:nowrap}
+#page-become-mentor .cell{position:relative;display:block;height:40px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+#page-become-mentor .cell input{position:absolute;inset:0;opacity:0;margin:0;width:100%;height:100%;pointer-events:none}
+#page-become-mentor .cell span{position:absolute;inset:0;border:1.5px solid var(--line);border-radius:8px;background:var(--paper)}
+#page-become-mentor .cell:hover span{border-color:var(--maroon)}
+#page-become-mentor .cell input:checked+span{background:var(--good);border-color:var(--good)}
+#page-become-mentor .cell input:checked+span::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:.9rem}
+#page-become-mentor .hd{font:inherit;font-weight:600;font-size:.8rem;color:var(--soft);background:transparent;border:0;border-radius:6px;padding:4px 2px;cursor:pointer;width:100%}
+#page-become-mentor .hd:hover{color:var(--maroon);background:color-mix(in srgb,var(--maroon) 8%,transparent)}
+#page-become-mentor .hd:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+#page-become-mentor .gridbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px}
+#page-become-mentor .link{font:inherit;font-size:.82rem;font-weight:600;color:var(--maroon);background:none;border:0;padding:4px 0;cursor:pointer;text-decoration:underline}
+#page-become-mentor .cell input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
+#page-become-mentor .exprow{display:grid;grid-template-columns:1fr 1fr 170px auto;gap:8px;margin-bottom:8px;align-items:center}
+@media (max-width:620px) {#page-become-mentor .exprow{grid-template-columns:1fr 1fr} #page-become-mentor .exprow select{grid-column:1/2}}
+#page-become-mentor .rm{font:inherit;width:38px;height:38px;border-radius:9px;border:1.5px solid var(--line);background:transparent;color:var(--soft);cursor:pointer;font-size:1.1rem}
+#page-become-mentor .rm:hover{border-color:var(--bad);color:var(--bad)}
+#page-become-mentor .pexp{font-size:.84rem;margin:0 0 10px;padding:0;list-style:none}
+#page-become-mentor .pexp li{margin-bottom:2px}
+#page-become-mentor .pexp b{font-weight:600}
+#page-become-mentor .count{font-size:.82rem;color:var(--soft);text-align:right}
+#page-become-mentor .nav{display:flex;justify-content:space-between;gap:10px;margin-top:24px}
+#page-become-mentor .btn{font:600 .95rem inherit;font-family:inherit;padding:12px 20px;border-radius:11px;border:1.5px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+#page-become-mentor .btn.main{background:var(--maroon);border-color:var(--maroon);color:var(--on-maroon)}
+#page-become-mentor .btn.main:hover{background:var(--maroon-d);border-color:var(--maroon-d)}
+#page-become-mentor .btn:disabled{visibility:hidden}
+#page-become-mentor .preview{position:sticky;top:16px}
+#page-become-mentor .preview h3{font-size:.95rem;margin-bottom:2px}
+#page-become-mentor .preview .hint{font-size:.8rem;margin-bottom:12px}
+#page-become-mentor .card{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--raised)}
+#page-become-mentor .ctop{display:flex;gap:12px;align-items:center}
+#page-become-mentor .av{width:48px;height:48px;border-radius:50%;background:linear-gradient(155deg,var(--maroon),var(--maroon-d));color:var(--on-maroon);display:grid;place-items:center;font-family:"Fraunces",serif;font-weight:600;flex-shrink:0}
+#page-become-mentor .cname{font-weight:700;margin:0}
+#page-become-mentor .cmeta{font-size:.82rem;color:var(--soft);margin:0}
+#page-become-mentor .tags{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+#page-become-mentor .tag{font-size:.78rem;padding:3px 9px;border-radius:999px;background:var(--gold-soft);border:1px solid var(--line)}
+#page-become-mentor .cbio{font-size:.86rem;color:var(--soft);margin:0 0 10px;overflow-wrap:anywhere}
+#page-become-mentor .cslots{font-size:.82rem;border-top:1px dashed var(--line);padding-top:10px;color:var(--soft)}
+#page-become-mentor .ph{color:var(--soft);font-style:italic}
+#page-become-mentor .review dt{font-size:.82rem;color:var(--soft);margin-top:12px}
+#page-become-mentor .review dd{margin:2px 0 0}
+#page-become-mentor .done{text-align:center;padding:12px 0}
+#page-become-mentor .done .ok{width:52px;height:52px;border-radius:50%;background:var(--good-soft);color:var(--good);display:grid;place-items:center;margin:0 auto 14px;font-size:1.5rem}
+#page-become-mentor .done ol{text-align:left;max-width:44ch;margin:18px auto;color:var(--soft)}
+#page-become-mentor .foot{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);font-size:.78rem;color:var(--soft)}
+#page-become-mentor .bio-field{background:var(--gold-soft);border:1.5px solid var(--gold);border-radius:12px;padding:14px 16px 16px;margin-bottom:20px}
+#page-become-mentor .bio-field label.l{font-size:1rem}
+#page-become-mentor .bio-field textarea{min-height:160px;background:var(--raised)}
+[hidden]{display:none!important}
+</style>
+
+<div class="wrap">
+
+<div class="masthead">
+    <div class="mark">
+      <svg width="26" height="24" viewBox="0 0 200 180" aria-hidden="true">
+        <rect x="18"  y="118" width="26" height="42" rx="4" fill="#f3e6c9" opacity="0.6"/>
+        <rect x="62"  y="94"  width="26" height="66" rx="4" fill="#f3e6c9" opacity="0.75"/>
+        <rect x="106" y="62"  width="26" height="98" rx="4" fill="#f3e6c9" opacity="0.9"/>
+        <rect x="150" y="26"  width="26" height="134" rx="4" fill="#f3e6c9"/>
+        <polyline points="10,150 75,88 119,56 163,14" fill="none" stroke="#d8b464" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <polygon points="163,14 145,21 157,35" fill="#d8b464"/>
+      </svg>
+    </div>
+    <div>
+      <p class="eyebrow">Griz Career Project Lab &middot; Prototype</p>
+      <h1><span class="van">VAN</span><span class="div">|</span><span class="tage">TAGE</span></h1>
+    </div>
+    <button type="button" class="home-btn" id="site-admin-btn">Admin view</button>
+    <button type="button" class="home-btn" id="site-home-btn" hidden>&larr; Vantage home</button>
+  </div>
+  <p class="process-line"><b>Talent</b><span class="arrow">&rarr;</span><b>Advice</b><span class="arrow">&rarr;</span><b>Growth</b><span class="arrow">&rarr;</span><b>Employment</b> &nbsp;&middot;&nbsp; Voluntary Advising Network</p>
+
+<div id="page-home">
+  <div class="panel hello">
+    <p class="wave">Hey, Griz</p>
+    <h2>Find someone who's <em>been where you're headed.</em></h2>
+    <p class="intro">Vantage connects UM students with mentors &mdash; students a year or two ahead, recent grads, and alumni. It's informal and voluntary: think advice and an honest perspective, not a guaranteed internship or job.</p>
+    <ul class="hello-facts">
+      <li><span class="n">72%</span><span class="s">of mentees said their mentor helped them figure out their next career move &mdash; InsideTrack</span></li>
+    </ul>
+    <p class="hint" style="margin-top:14px">Nothing here is owed to anyone &mdash; it's one click to ask.</p>
+  </div>
+
+  <div class="page-cta">
+    <button type="button" class="cta-card" id="cta-get-mentor">
+      <span class="cta-title">I want a mentor</span>
+      <span class="cta-desc">Apply in a few minutes: browse the mentor pool, see their LinkedIn, and tell us your top 3 preferred. Our program coordinator reviews every application and makes the match.</span>
+      <span class="cta-arrow">Start application &rarr;</span>
+    </button>
+    <button type="button" class="cta-card alt" id="cta-become-mentor">
+      <span class="cta-title">I want to be a mentor</span>
+      <span class="cta-desc">Share your background and availability in about three minutes so students can find you when they apply.</span>
+      <span class="cta-arrow">Sign up &rarr;</span>
+    </button>
+  </div>
+
+  <div class="home-lower">
+    <div class="panel dates-panel">
+      <h3>Key dates</h3>
+      <ul class="dates-list">
+        <li class="date-row">
+          <span class="date-chip">TBD<span class="tbd">confirming</span></span>
+          <div><b>Program kickoff</b><span class="d-desc">Mentors and mentees meet for the first time and get paired up.</span></div>
+        </li>
+        <li class="date-row">
+          <span class="date-chip">TBD<span class="tbd">confirming</span></span>
+          <div><b>Mentor&ndash;mentee dinner</b><span class="d-desc">A dinner for every mentor and mentee pair, hosted later in the program.</span></div>
+        </li>
+      </ul>
+      <p class="hint" style="margin:14px 0 0">Dates are placeholders until Traci confirms &mdash; swap them in before the real launch.</p>
+    </div>
+    <div class="panel qr-panel">
+      <h3>Scan to apply</h3>
+      <div class="qr-box" aria-hidden="true">
+<svg viewBox="0 0 41 41" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" role="img" aria-label="QR code linking to the Vantage mentor application">
+<rect x="0" y="0" width="41" height="41" fill="#ffffff"/>
+<g fill="#1a1a1a">
+<rect x="4" y="4" width="7" height="1"/><rect x="13" y="4" width="3" height="1"/><rect x="17" y="4" width="2" height="1"/><rect x="20" y="4" width="2" height="1"/><rect x="23" y="4" width="2" height="1"/><rect x="26" y="4" width="2" height="1"/><rect x="30" y="4" width="7" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/><rect x="13" y="5" width="1" height="1"/><rect x="15" y="5" width="1" height="1"/><rect x="17" y="5" width="5" height="1"/><rect x="24" y="5" width="3" height="1"/><rect x="28" y="5" width="1" height="1"/><rect x="30" y="5" width="1" height="1"/><rect x="36" y="5" width="1" height="1"/><rect x="4" y="6" width="1" height="1"/><rect x="6" y="6" width="3" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="12" y="6" width="3" height="1"/><rect x="17" y="6" width="1" height="1"/><rect x="20" y="6" width="3" height="1"/><rect x="25" y="6" width="1" height="1"/><rect x="27" y="6" width="1" height="1"/><rect x="30" y="6" width="1" height="1"/><rect x="32" y="6" width="3" height="1"/><rect x="36" y="6" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="6" y="7" width="3" height="1"/><rect x="10" y="7" width="1" height="1"/><rect x="12" y="7" width="2" height="1"/><rect x="15" y="7" width="1" height="1"/><rect x="18" y="7" width="1" height="1"/><rect x="20" y="7" width="1" height="1"/><rect x="23" y="7" width="2" height="1"/><rect x="26" y="7" width="3" height="1"/><rect x="30" y="7" width="1" height="1"/><rect x="32" y="7" width="3" height="1"/><rect x="36" y="7" width="1" height="1"/><rect x="4" y="8" width="1" height="1"/><rect x="6" y="8" width="3" height="1"/><rect x="10" y="8" width="1" height="1"/><rect x="12" y="8" width="1" height="1"/><rect x="19" y="8" width="1" height="1"/><rect x="22" y="8" width="1" height="1"/><rect x="25" y="8" width="3" height="1"/><rect x="30" y="8" width="1" height="1"/><rect x="32" y="8" width="3" height="1"/><rect x="36" y="8" width="1" height="1"/><rect x="4" y="9" width="1" height="1"/><rect x="10" y="9" width="1" height="1"/><rect x="12" y="9" width="2" height="1"/><rect x="18" y="9" width="3" height="1"/><rect x="24" y="9" width="3" height="1"/><rect x="28" y="9" width="1" height="1"/><rect x="30" y="9" width="1" height="1"/><rect x="36" y="9" width="1" height="1"/><rect x="4" y="10" width="7" height="1"/><rect x="12" y="10" width="1" height="1"/><rect x="14" y="10" width="1" height="1"/><rect x="16" y="10" width="1" height="1"/><rect x="18" y="10" width="1" height="1"/><rect x="20" y="10" width="1" height="1"/><rect x="22" y="10" width="1" height="1"/><rect x="24" y="10" width="1" height="1"/><rect x="26" y="10" width="1" height="1"/><rect x="28" y="10" width="1" height="1"/><rect x="30" y="10" width="7" height="1"/><rect x="12" y="11" width="1" height="1"/><rect x="15" y="11" width="1" height="1"/><rect x="18" y="11" width="2" height="1"/><rect x="22" y="11" width="1" height="1"/><rect x="25" y="11" width="1" height="1"/><rect x="28" y="11" width="1" height="1"/><rect x="4" y="12" width="1" height="1"/><rect x="6" y="12" width="5" height="1"/><rect x="16" y="12" width="4" height="1"/><rect x="21" y="12" width="1" height="1"/><rect x="26" y="12" width="1" height="1"/><rect x="28" y="12" width="1" height="1"/><rect x="30" y="12" width="5" height="1"/><rect x="5" y="13" width="1" height="1"/><rect x="7" y="13" width="1" height="1"/><rect x="13" y="13" width="2" height="1"/><rect x="22" y="13" width="3" height="1"/><rect x="27" y="13" width="1" height="1"/><rect x="30" y="13" width="2" height="1"/><rect x="33" y="13" width="2" height="1"/><rect x="36" y="13" width="1" height="1"/><rect x="5" y="14" width="1" height="1"/><rect x="8" y="14" width="1" height="1"/><rect x="10" y="14" width="2" height="1"/><rect x="15" y="14" width="1" height="1"/><rect x="19" y="14" width="2" height="1"/><rect x="22" y="14" width="1" height="1"/><rect x="24" y="14" width="2" height="1"/><rect x="29" y="14" width="1" height="1"/><rect x="32" y="14" width="1" height="1"/><rect x="34" y="14" width="2" height="1"/><rect x="6" y="15" width="2" height="1"/><rect x="9" y="15" width="1" height="1"/><rect x="11" y="15" width="1" height="1"/><rect x="13" y="15" width="1" height="1"/><rect x="15" y="15" width="1" height="1"/><rect x="18" y="15" width="1" height="1"/><rect x="20" y="15" width="1" height="1"/><rect x="23" y="15" width="4" height="1"/><rect x="28" y="15" width="2" height="1"/><rect x="32" y="15" width="3" height="1"/><rect x="36" y="15" width="1" height="1"/><rect x="8" y="16" width="4" height="1"/><rect x="14" y="16" width="3" height="1"/><rect x="22" y="16" width="1" height="1"/><rect x="25" y="16" width="1" height="1"/><rect x="31" y="16" width="3" height="1"/><rect x="35" y="16" width="1" height="1"/><rect x="5" y="17" width="1" height="1"/><rect x="8" y="17" width="1" height="1"/><rect x="11" y="17" width="2" height="1"/><rect x="14" y="17" width="8" height="1"/><rect x="24" y="17" width="1" height="1"/><rect x="27" y="17" width="1" height="1"/><rect x="30" y="17" width="1" height="1"/><rect x="34" y="17" width="3" height="1"/><rect x="4" y="18" width="4" height="1"/><rect x="9" y="18" width="8" height="1"/><rect x="22" y="18" width="2" height="1"/><rect x="26" y="18" width="1" height="1"/><rect x="28" y="18" width="3" height="1"/><rect x="32" y="18" width="4" height="1"/><rect x="4" y="19" width="1" height="1"/><rect x="7" y="19" width="2" height="1"/><rect x="11" y="19" width="1" height="1"/><rect x="13" y="19" width="1" height="1"/><rect x="16" y="19" width="1" height="1"/><rect x="20" y="19" width="1" height="1"/><rect x="22" y="19" width="5" height="1"/><rect x="28" y="19" width="3" height="1"/><rect x="33" y="19" width="2" height="1"/><rect x="4" y="20" width="2" height="1"/><rect x="8" y="20" width="1" height="1"/><rect x="10" y="20" width="1" height="1"/><rect x="16" y="20" width="2" height="1"/><rect x="21" y="20" width="1" height="1"/><rect x="23" y="20" width="1" height="1"/><rect x="26" y="20" width="1" height="1"/><rect x="28" y="20" width="2" height="1"/><rect x="31" y="20" width="2" height="1"/><rect x="36" y="20" width="1" height="1"/><rect x="4" y="21" width="1" height="1"/><rect x="8" y="21" width="1" height="1"/><rect x="11" y="21" width="1" height="1"/><rect x="13" y="21" width="4" height="1"/><rect x="18" y="21" width="1" height="1"/><rect x="20" y="21" width="2" height="1"/><rect x="23" y="21" width="2" height="1"/><rect x="27" y="21" width="1" height="1"/><rect x="30" y="21" width="2" height="1"/><rect x="33" y="21" width="4" height="1"/><rect x="5" y="22" width="2" height="1"/><rect x="8" y="22" width="3" height="1"/><rect x="13" y="22" width="4" height="1"/><rect x="18" y="22" width="4" height="1"/><rect x="26" y="22" width="1" height="1"/><rect x="28" y="22" width="5" height="1"/><rect x="34" y="22" width="2" height="1"/><rect x="5" y="23" width="1" height="1"/><rect x="7" y="23" width="2" height="1"/><rect x="11" y="23" width="3" height="1"/><rect x="15" y="23" width="1" height="1"/><rect x="18" y="23" width="2" height="1"/><rect x="21" y="23" width="4" height="1"/><rect x="29" y="23" width="7" height="1"/><rect x="4" y="24" width="3" height="1"/><rect x="8" y="24" width="1" height="1"/><rect x="10" y="24" width="2" height="1"/><rect x="14" y="24" width="2" height="1"/><rect x="18" y="24" width="1" height="1"/><rect x="20" y="24" width="1" height="1"/><rect x="23" y="24" width="4" height="1"/><rect x="31" y="24" width="3" height="1"/><rect x="35" y="24" width="2" height="1"/><rect x="4" y="25" width="2" height="1"/><rect x="8" y="25" width="1" height="1"/><rect x="14" y="25" width="1" height="1"/><rect x="17" y="25" width="1" height="1"/><rect x="19" y="25" width="1" height="1"/><rect x="22" y="25" width="1" height="1"/><rect x="27" y="25" width="1" height="1"/><rect x="30" y="25" width="1" height="1"/><rect x="33" y="25" width="1" height="1"/><rect x="36" y="25" width="1" height="1"/><rect x="4" y="26" width="1" height="1"/><rect x="6" y="26" width="2" height="1"/><rect x="9" y="26" width="3" height="1"/><rect x="15" y="26" width="2" height="1"/><rect x="19" y="26" width="2" height="1"/><rect x="24" y="26" width="1" height="1"/><rect x="26" y="26" width="1" height="1"/><rect x="35" y="26" width="1" height="1"/><rect x="4" y="27" width="1" height="1"/><rect x="6" y="27" width="3" height="1"/><rect x="13" y="27" width="3" height="1"/><rect x="17" y="27" width="3" height="1"/><rect x="25" y="27" width="1" height="1"/><rect x="28" y="27" width="1" height="1"/><rect x="30" y="27" width="2" height="1"/><rect x="33" y="27" width="2" height="1"/><rect x="36" y="27" width="1" height="1"/><rect x="4" y="28" width="1" height="1"/><rect x="7" y="28" width="5" height="1"/><rect x="14" y="28" width="2" height="1"/><rect x="18" y="28" width="2" height="1"/><rect x="21" y="28" width="1" height="1"/><rect x="28" y="28" width="6" height="1"/><rect x="35" y="28" width="2" height="1"/><rect x="12" y="29" width="1" height="1"/><rect x="14" y="29" width="1" height="1"/><rect x="20" y="29" width="1" height="1"/><rect x="22" y="29" width="2" height="1"/><rect x="25" y="29" width="4" height="1"/><rect x="32" y="29" width="1" height="1"/><rect x="34" y="29" width="1" height="1"/><rect x="36" y="29" width="1" height="1"/><rect x="4" y="30" width="7" height="1"/><rect x="13" y="30" width="2" height="1"/><rect x="16" y="30" width="2" height="1"/><rect x="19" y="30" width="1" height="1"/><rect x="22" y="30" width="1" height="1"/><rect x="24" y="30" width="2" height="1"/><rect x="27" y="30" width="2" height="1"/><rect x="30" y="30" width="1" height="1"/><rect x="32" y="30" width="1" height="1"/><rect x="34" y="30" width="1" height="1"/><rect x="4" y="31" width="1" height="1"/><rect x="10" y="31" width="1" height="1"/><rect x="12" y="31" width="2" height="1"/><rect x="15" y="31" width="1" height="1"/><rect x="17" y="31" width="2" height="1"/><rect x="20" y="31" width="1" height="1"/><rect x="25" y="31" width="4" height="1"/><rect x="32" y="31" width="4" height="1"/><rect x="4" y="32" width="1" height="1"/><rect x="6" y="32" width="3" height="1"/><rect x="10" y="32" width="1" height="1"/><rect x="12" y="32" width="2" height="1"/><rect x="15" y="32" width="1" height="1"/><rect x="17" y="32" width="2" height="1"/><rect x="22" y="32" width="1" height="1"/><rect x="25" y="32" width="1" height="1"/><rect x="28" y="32" width="6" height="1"/><rect x="35" y="32" width="2" height="1"/><rect x="4" y="33" width="1" height="1"/><rect x="6" y="33" width="3" height="1"/><rect x="10" y="33" width="1" height="1"/><rect x="12" y="33" width="1" height="1"/><rect x="15" y="33" width="1" height="1"/><rect x="17" y="33" width="1" height="1"/><rect x="19" y="33" width="2" height="1"/><rect x="24" y="33" width="4" height="1"/><rect x="29" y="33" width="1" height="1"/><rect x="32" y="33" width="3" height="1"/><rect x="36" y="33" width="1" height="1"/><rect x="4" y="34" width="1" height="1"/><rect x="6" y="34" width="3" height="1"/><rect x="10" y="34" width="1" height="1"/><rect x="12" y="34" width="1" height="1"/><rect x="17" y="34" width="1" height="1"/><rect x="21" y="34" width="3" height="1"/><rect x="28" y="34" width="4" height="1"/><rect x="34" y="34" width="1" height="1"/><rect x="4" y="35" width="1" height="1"/><rect x="10" y="35" width="1" height="1"/><rect x="15" y="35" width="1" height="1"/><rect x="18" y="35" width="1" height="1"/><rect x="20" y="35" width="1" height="1"/><rect x="22" y="35" width="5" height="1"/><rect x="32" y="35" width="3" height="1"/><rect x="4" y="36" width="7" height="1"/><rect x="12" y="36" width="1" height="1"/><rect x="15" y="36" width="1" height="1"/><rect x="18" y="36" width="1" height="1"/><rect x="21" y="36" width="4" height="1"/><rect x="27" y="36" width="5" height="1"/><rect x="35" y="36" width="1" height="1"/>
+</g>
+</svg>
+      </div>
+      <p>Scan with your phone to jump straight into the mentor application.</p>
+      <p class="qr-link">bstanton31.github.io/um-vantage/#apply</p>
+    </div>
+  </div>
+</div>
+
+<div id="page-get-mentor" hidden>
+<!-- ===== Screen 1: Welcome ===== -->
+  <section id="screen-welcome" class="screen">
+    <div class="panel hello">
+      <p class="wave">Hey, Griz</p>
+      <h2>Find someone who's <em>been where you're headed.</em></h2>
+      <p class="intro">Tell us a bit about yourself, then browse the mentor pool and pick your top 3 preferred. Our program coordinator reviews every application and makes the final match.</p>
+      <ul class="hello-facts">
+        <li><span class="n">30</span><span class="s">mentors in the pool to browse, including their LinkedIn</span></li>
+      </ul>
+      <button type="button" class="btn-primary big" id="start-btn">Start my application &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 2: Applicant info ===== -->
+  <section id="screen-info" class="screen" hidden>
+    <div class="panel survey">
+      <h2 style="margin:0 0 6px">About you</h2>
+      <p class="hint" style="margin:0 0 20px">This goes to our program coordinator along with your preferred mentors.</p>
+      <div class="field"><label for="app-name">Full name</label><input type="text" id="app-name" autocomplete="name"></div>
+      <div class="field"><label for="app-email">Email</label><input type="email" id="app-email" autocomplete="email"></div>
+      <div class="field"><label for="app-major">Major or field of study</label><input type="text" id="app-major" placeholder="e.g. Marketing"></div>
+      <div class="field"><label for="app-goal">What are you hoping to get from a mentor? (optional)</label><textarea id="app-goal" rows="3" placeholder="e.g. help understanding what a career in consulting looks like, or how to land an internship"></textarea></div>
+      <div class="err" id="app-info-err" hidden>Enter your name and a valid email to continue.</div>
+      <div class="survey-nav">
+        <button type="button" class="btn-text" id="info-back-btn">&larr; Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn-primary" id="info-next-btn">Continue &rarr;</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screen 3: Browse & prefer ===== -->
+  <section id="screen-browse" class="screen" hidden>
+    <div class="panel">
+      <div class="filter-bar" id="filter-bar"></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <p class="hint" style="margin:0">Pick up to 3 mentors you'd prefer to work with. This isn't a guarantee &mdash; it just helps our coordinator match you. <strong id="prefer-count" style="color:var(--ink)">0 of 3 selected</strong></p>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="survey-nav" style="border-top:none;padding-top:0">
+      <button type="button" class="btn-text" id="browse-back-btn">&larr; Back</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn-primary" id="browse-next-btn" disabled>Review application &rarr;</button>
+    </div>
+  </section>
+
+  <!-- ===== Screen 4: Review & submit ===== -->
+  <section id="screen-review" class="screen" hidden>
+    <div class="panel survey">
+      <h2 style="margin:0 0 6px">Review and submit</h2>
+      <p class="hint" style="margin:0 0 20px">Double check this, then submit. Our coordinator reviews every application &mdash; you'll hear back by email.</p>
+      <dl class="review" id="app-review"></dl>
+      <div class="survey-nav">
+        <button type="button" class="btn-text" id="review-back-btn">&larr; Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn-primary" id="submit-app-btn">Submit application</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Screen 5: Success ===== -->
+  <section id="screen-success" class="screen" hidden>
+    <div class="panel hello" style="text-align:center;padding:48px 28px">
+      <div aria-hidden="true" style="width:52px;height:52px;border-radius:50%;background:var(--good-soft);color:var(--good);display:grid;place-items:center;margin:0 auto 16px;font-size:1.5rem">&#10003;</div>
+      <h2 style="max-width:none">Application submitted</h2>
+      <p class="intro" style="margin:0 auto 24px;max-width:46ch">Thanks, <span id="success-name"></span>. Our program coordinator will review your application and preferred mentors, then reach out by email with your match.</p>
+      <button type="button" class="btn-primary big" id="success-done-btn">Done</button>
+    </div>
+  </section>
+</div>
+
+<div id="page-admin" hidden>
+  <h1>Applications</h1>
+  <p class="lede">Visible to the Vantage team only &mdash; every student application with their preferred mentors, plus mentor sign-ups queued for review.</p>
+
+  <div class="panel" id="admin-signed-out">
+    <h2 style="margin:0 0 6px">Sign in to view</h2>
+    <p class="hint">This dashboard is restricted to the Vantage team.</p>
+    <button type="button" class="btn-primary" id="admin-signin-btn">Sign in with Google</button>
+  </div>
+
+  <div class="panel" id="admin-no-access" hidden>
+    <h2 style="margin:0 0 6px">No access</h2>
+    <p class="hint">Signed in as <b id="admin-who"></b>, but this account isn&rsquo;t on the Vantage team list yet. Ask Ben to add your email.</p>
+    <button type="button" class="btn-ghost" id="admin-signout-btn">Sign out</button>
+  </div>
+
+  <div id="admin-content" hidden>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <h2 style="margin:0"><span class="live-dot"></span>Student applications</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button type="button" class="btn-ghost" id="export-apps-btn">Export CSV</button>
+          <button type="button" class="btn-ghost" id="admin-signout-btn-2">Sign out</button>
+        </div>
+      </div>
+      <p class="hint">Updates live as students apply.</p>
+      <div id="dash-applications"><p class="dash-empty">No applications yet.</p></div>
+    </div>
+
+    <div class="panel" style="margin-top:20px">
+      <h2>Mentor sign-ups</h2>
+      <p class="hint">From the Become a Mentor form &mdash; use this to migrate in the real 30 once Traci sends them over.</p>
+      <div id="dash-signups"><p class="dash-empty">No mentor sign-ups yet.</p></div>
+    </div>
+  </div>
+</div>
+
+<div id="page-become-mentor" hidden>
+  <h1>Share what you know with the next Griz</h1>
+  <p class="lede">Mentors give students a few hours a month: an intro call, a resume look, an honest view of your field. Tell us about yourself and when you're free. It takes about three minutes.</p>
+
+  <div class="layout">
+    <main class="panel" id="main" aria-live="polite">
+      <ol class="steps" id="steps"><li>About you</li><li>Your expertise</li><li>Bio and availability</li></ol>
+      <form id="f" novalidate>
+
+        <section data-step="0">
+          <h2>About you</h2><p class="hint">Students see your name, role and city. Your email stays private until you accept a request.</p>
+          <div class="row">
+            <div class="field"><label class="l" for="name">Full name</label><input type="text" id="name" autocomplete="name" data-req></div>
+            <div class="field"><label class="l" for="email">Email</label><input type="email" id="email" autocomplete="email" data-req></div>
+          </div>
+          <fieldset><legend>Where are you in your path?</legend>
+            <div class="opts">
+              <label class="opt"><input type="radio" name="stage" value="peer" checked><span><b>Current UM student</b><span>A year or two ahead. Great for internships and classes.</span></span></label>
+              <label class="opt"><input type="radio" name="stage" value="grad"><span><b>Recent grad</b><span>Within a few years of graduating. Fresh on the transition.</span></span></label>
+              <label class="opt"><input type="radio" name="stage" value="alum"><span><b>Experienced alum</b><span>Several years in. Can talk long-term trajectory.</span></span></label>
+            </div>
+          </fieldset>
+          <div class="row">
+            <div class="field"><label class="l" for="role" id="rolelbl">Major</label><input type="text" id="role" data-req placeholder="e.g. Marketing"></div>
+            <div class="field" id="cowrap"><label class="l" for="company">Employer</label><input type="text" id="company" placeholder="e.g. Bright Trail Media"></div>
+          </div>
+          <div class="field"><label class="l" for="loc">City</label><input type="text" id="loc" data-req placeholder="e.g. Missoula, MT, or Remote"></div>
+          <div class="field"><label class="l" for="linkedin">LinkedIn (optional)</label><input type="url" id="linkedin" placeholder="e.g. https://linkedin.com/in/yourname"></div>
+        </section>
+
+        <section data-step="1" hidden>
+          <h2>Your expertise</h2><p class="hint">Pick what you could speak about with confidence. We use this to rank you against student searches.</p>
+          <fieldset><legend>Field or industry (choose 1 to 3)</legend><div class="chips" id="ind"></div><div class="err" id="inderr" hidden></div></fieldset>
+          <fieldset><legend>What can you help with? (choose at least 1)</legend><div class="chips" id="goal"></div><div class="err" id="goalerr" hidden></div></fieldset>
+          <fieldset><legend>Internships or jobs (optional)</legend>
+            <p class="hint" style="margin:-2px 0 10px">Where you work now, what you have lined up, or where you worked before. Students see this on your profile. Add up to 3.</p>
+            <div id="exp"></div><button type="button" class="btn" id="addexp">Add another</button>
+          </fieldset>
+        </section>
+
+        <section data-step="2" hidden>
+          <h2>Bio and availability</h2><p class="hint">Your bio is what students read first when deciding who to reach out to &mdash; take the space you need.</p>
+          <div class="field bio-field">
+            <label class="l" for="bio">Short bio</label>
+            <p class="hint" style="margin:-2px 0 10px">What did you study, what do you do now, and what do you wish someone had told you in college? Write as much as feels useful &mdash; there's no limit.</p>
+            <textarea id="bio" data-req rows="7" placeholder="e.g. I studied marketing at UM and now work on the brand team at a Missoula agency. Happy to talk through resumes, portfolios, or just what the first year on the job is actually like."></textarea>
+            <div class="count"><span id="biocount">0 characters</span></div>
+          </div>
+          <fieldset><legend>Weekly availability</legend>
+            <p class="hint" style="margin:-2px 0 10px">Click or drag across the grid to select times. Click a day or a time to select the whole column or row.</p>
+            <div style="overflow-x:auto"><table class="grid" id="grid"></table></div>
+            <div class="gridbar"><button type="button" class="link" id="clearslots">Clear all</button><div class="count" id="slotcount">0 slots selected</div></div><div class="err" id="sloterr" hidden></div>
+          </fieldset>
+          <div class="field"><label class="l" for="cap">Calls per month you're comfortable with</label>
+            <select id="cap"><option>1</option><option selected>2</option><option>4</option><option>6</option></select></div>
+          <div class="field"><label class="l" for="freq">How often could you meet with one student? (optional)</label>
+            <select id="freq"><option value="">No preference</option><option>One intro call</option><option>Monthly check-in</option><option>Every two weeks</option><option>Weekly, for a semester</option></select></div>
+        </section>
+
+        <section data-step="3" hidden>
+          <h2>Check and submit</h2><p class="hint">The Vantage team reviews each profile before it goes live, usually within two business days.</p>
+          <dl class="review" id="review"></dl>
+        </section>
+
+        <div class="nav"><button type="button" class="btn" id="back">Back</button><button type="submit" class="btn main" id="next">Continue</button></div>
+      </form>
+
+      <div class="done" id="done" hidden>
+        <div class="ok" aria-hidden="true">&#10003;</div>
+        <h2>Thanks, <span id="dname"></span>. You're in the queue.</h2>
+        <ol><li>We confirm your UM connection and review your profile.</li><li>You get an email when it's live.</li><li>Students request a time. You accept or decline by email.</li></ol>
+        <button type="button" class="btn" id="again">Start over</button>
+      </div>
+    </main>
+
+    <aside class="panel preview" aria-label="Profile preview">
+      <h3>How students will see you</h3><p class="hint">Updates as you type.</p>
+      <div class="card">
+        <div class="ctop"><div class="av" id="pav">?</div><div><p class="cname" id="pname"></p><p class="cmeta" id="prole"></p><p class="cmeta" id="ploc"></p></div></div>
+        <div class="tags" id="ptags"></div>
+        <ul class="pexp" id="pexp" hidden></ul>
+        <p class="cbio" id="pbio"></p>
+        <div class="cslots"><div id="pslots"></div><div id="pfreq" hidden></div></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+  <p class="footnote">
+    <b style="color:var(--ink)">Vantage</b> (Voluntary Advising Network: Talent &rarr; Advice &rarr; Growth &rarr; Employment) is a Griz Career Project Lab prototype &mdash; Team: Ben Stanton, Hunter Holms, Preston Baker. The 30 mentors shown are illustrative placeholders (not real people) standing in for the real UM Mentor Program roster this would launch with. Applying, picking preferred mentors, and the mentor sign-up are mocked up to show how the flow would work; a real deployment routes every application to a program coordinator, who makes the final match &mdash; preferred mentors are a signal, never a guarantee. Your applications and mentor sign-ups are saved so our team can see what's actually being used.
+  </p>
+</div>
+
+<script>
+(function(){
+  // ---------- Shared backend (saves applications, mentor sign-ups) ----------
+  const db = window.VantageFirebase.db;
+  const auth = window.VantageFirebase.auth;
+  const ADMIN_EMAILS = window.VantageFirebase.ADMIN_EMAILS;
+  let canSeeDashboard = false;
+  let dashboardInited = false;
+  let lastApplications = [];
+
+  function renderAdminGate(user) {
+    const signedOut = document.getElementById("admin-signed-out");
+    const noAccess = document.getElementById("admin-no-access");
+    const content = document.getElementById("admin-content");
+    if (!signedOut || !noAccess || !content) return;
+    if (!user) {
+      signedOut.hidden = false; noAccess.hidden = true; content.hidden = true;
+    } else if (!canSeeDashboard) {
+      signedOut.hidden = true; noAccess.hidden = false; content.hidden = true;
+      const who = document.getElementById("admin-who");
+      if (who) who.textContent = user.email || "";
+    } else {
+      signedOut.hidden = true; noAccess.hidden = true; content.hidden = false;
+    }
+  }
+
+  function initBackend() {
+    if (!auth) {
+      const signedOut = document.getElementById("admin-signed-out");
+      if (signedOut) signedOut.innerHTML = '<h2 style="margin:0 0 6px">Not available</h2><p class="hint">The live backend didn’t load — check your connection and reload.</p>';
+      return;
+    }
+    auth.onAuthStateChanged((user) => {
+      canSeeDashboard = !!(user && user.email && ADMIN_EMAILS.includes(user.email));
+      renderAdminGate(user);
+      if (canSeeDashboard) initDashboard();
+    });
+    const signinBtn = document.getElementById("admin-signin-btn");
+    if (signinBtn) signinBtn.addEventListener("click", () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch((e) => {
+        alert("Sign-in failed: " + (e.message || e.code || "unknown error"));
+      });
+    });
+    ["admin-signout-btn", "admin-signout-btn-2"].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (btn) btn.addEventListener("click", () => auth.signOut());
+    });
+  }
+  initBackend();
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function fmtWhen(iso) {
+    try {
+      const d = new Date(iso);
+      const mins = Math.round((Date.now() - d.getTime()) / 60000);
+      if (mins < 1) return "just now";
+      if (mins < 60) return mins + "m ago";
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return hrs + "h ago";
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    } catch (e) { return ""; }
+  }
+
+  function csvField(v) {
+    const s = String(v == null ? "" : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportApplicationsCSV() {
+    if (!lastApplications.length) { alert("No applications to export yet."); return; }
+    const header = ["Name", "Email", "Major / field", "What they're hoping for", "Preferred mentors", "Submitted"];
+    const rows = lastApplications.map(d => [
+      d.name || "", d.email || "", d.major || "", d.goal || "",
+      (d.preferredMentors || []).map(m => m.name + (m.role ? " (" + m.role + ")" : "")).join(" | "),
+      d.ts || "",
+    ]);
+    const csv = [header, ...rows].map(r => r.map(csvField).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "vantage-applications.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function initDashboard() {
+    if (dashboardInited || !db) return;
+    dashboardInited = true;
+
+    const exportBtn = document.getElementById("export-apps-btn");
+    if (exportBtn) exportBtn.addEventListener("click", exportApplicationsCSV);
+
+    db.collection("applications").orderBy("ts", "desc").limit(100).onSnapshot((snap) => {
+      const el = document.getElementById("dash-applications");
+      lastApplications = snap.empty ? [] : snap.docs.map(d => d.data());
+      if (snap.empty) { el.innerHTML = '<p class="dash-empty">No applications yet.</p>'; return; }
+      el.innerHTML = lastApplications.map(d => {
+        const prefs = (d.preferredMentors || []).map(m =>
+          `<a href="${m.linkedin}" target="_blank" rel="noopener">${escapeHtml(m.name)}</a>${m.role ? " (" + escapeHtml(m.role) + ")" : ""}`
+        ).join(", ") || "None selected";
+        const extra = [];
+        if (d.major) extra.push(escapeHtml(d.major));
+        if (d.goal) extra.push(`&ldquo;${escapeHtml(d.goal)}&rdquo;`);
+        return `<div class="dash-item"><div class="top"><span class="who">${escapeHtml(d.name || "Someone")} &middot; ${escapeHtml(d.email || "")}</span><span class="when">${fmtWhen(d.ts)}</span></div><div class="body">${extra.join(" &mdash; ")}${extra.length ? "<br>" : ""}<b>Preferred:</b> ${prefs}</div></div>`;
+      }).join("");
+    }, () => {});
+
+    db.collection("mentor_signups").orderBy("ts", "desc").limit(40).onSnapshot((snap) => {
+      const el = document.getElementById("dash-signups");
+      if (snap.empty) { el.innerHTML = '<p class="dash-empty">No mentor sign-ups yet.</p>'; return; }
+      const docs = snap.docs.map(d => d.data());
+      el.innerHTML = docs.map(d => {
+        const role = [d.role, d.company].filter(Boolean).join(", ");
+        return `<div class="dash-item"><div class="top"><span class="who">${escapeHtml(d.name || "Someone")}</span><span class="when">${fmtWhen(d.ts)}</span></div><div class="body">${escapeHtml(role || "Wants to be a mentor")}${d.loc ? " &middot; " + escapeHtml(d.loc) : ""}${d.email ? " &middot; " + escapeHtml(d.email) : ""}</div></div>`;
+      }).join("");
+    }, () => {});
+  }
+
+  // ---------- Field/goal/stage vocabulary ----------
+  const INTERESTS = [
+    { id: "strategy",    label: "Strategy & Consulting",       desc: "Solve big-picture business problems" },
+    { id: "tech",        label: "Tech & Software",             desc: "Build apps, software, and products" },
+    { id: "data",        label: "Data & AI",                   desc: "Turn data into decisions" },
+    { id: "finance",     label: "Finance & Accounting",        desc: "Banking, investing, and accounting" },
+    { id: "marketing",   label: "Marketing & Comms",           desc: "Brands, campaigns, and storytelling" },
+    { id: "health",      label: "Healthcare & Life Sciences",  desc: "Clinical, research, and public health" },
+    { id: "engineering", label: "Engineering & Manufacturing", desc: "Design and build physical things" },
+    { id: "nonprofit",   label: "Nonprofit & Public Sector",   desc: "Mission-driven and government work" },
+    { id: "creative",    label: "Creative & Design",           desc: "Design, media, and visual work" },
+    { id: "startup",     label: "Entrepreneurship & Startups", desc: "Start or join something new" },
+  ];
+
+  const GOALS = [
+    { id: "internship", label: "Finding an internship",   desc: "Where to look and how to land one" },
+    { id: "resume",     label: "Resume & interview prep", desc: "Polish your resume and practice interviews" },
+    { id: "path",       label: "Career path advice",      desc: "Figure out which direction fits you" },
+    { id: "gradschool", label: "Grad school advice",      desc: "Whether, when, and where to apply" },
+    { id: "network",    label: "Networking & intros",     desc: "Meet people and get introduced" },
+    { id: "daylife",    label: "Day-in-the-life insight", desc: "What the job is actually like" },
+  ];
+  const GOAL_LABEL = Object.fromEntries(GOALS.map(g => [g.id, g.label]));
+  const INTEREST_LABEL = Object.fromEntries(INTERESTS.map(i => [i.id, i.label]));
+
+  const STAGES = [
+    { id: "peer", t: "A peer mentor",        d: "A current student a year or two ahead of me" },
+    { id: "grad", t: "A recent grad",        d: "Someone who just started their career, close to the transition" },
+    { id: "alum", t: "An experienced alum",  d: "Someone several years in who can talk long-term trajectory" },
+    { id: "any",  t: "No preference",        d: "Show me whoever's the best overall fit" },
+  ];
+  const STAGE_LABEL = { peer: "Peer mentor", grad: "Recent grad", alum: "Experienced alum", any: "Any mentor type" };
+
+  // ---------- 30 illustrative mentors (not real people) ----------
+  // Easy swap later: once Traci sends the real 30, this array (or the
+  // mentor_signups migrated through "Become a Mentor") replaces it.
+  const MENTORS = (function buildMentors() {
+    const firstNames = ["Olivia","Liam","Emma","Noah","Ava","Ethan","Sophia","Mason","Isabella","Lucas","Mia","Elijah","Charlotte","James","Amelia","Benjamin","Harper","Henry","Evelyn","Alexander","Abigail","Jackson","Emily","Sebastian","Elizabeth","Aiden","Sofia","Matthew","Avery","Samuel"];
+    const lastNames  = ["Carter","Bennett","Reyes","Morgan","Hayes","Fletcher","Simmons","Patel","Nguyen","Brooks","Coleman","Ramirez","Foster","Hudson","Larson","Mercer","Donovan","Whitfield","Sullivan","Chavez","Kowalski","Ashford","Delgado","Pierce","Sinclair","Warren","Castillo","Lindqvist","Okafor","Barrett"];
+    const locations = ["Missoula, MT","Bozeman, MT","Helena, MT","Billings, MT","Kalispell, MT","Remote &middot; Mountain Time","Seattle, WA","Portland, OR","Denver, CO","Salt Lake City, UT","Spokane, WA","Boise, ID"];
+
+    const IND = {
+      strategy:    { label: "Strategy & Consulting", major: "Management Information Systems", entry: "Strategy Analyst", senior: "Senior Strategy Consultant", companies: ["Northbound Strategy Group", "Cairn Advisory Partners"] },
+      tech:        { label: "Tech & Software", major: "Computer Science", entry: "Software Engineer I", senior: "Senior Software Engineer", companies: ["Lumen Softworks", "Pinecrest Technologies"] },
+      data:        { label: "Data & AI", major: "Data Science", entry: "Data Analyst", senior: "Lead Data Scientist", companies: ["Arclight Data Co.", "Summit Analytics Lab"] },
+      finance:     { label: "Finance & Accounting", major: "Finance", entry: "Financial Analyst", senior: "Finance Manager", companies: ["Ledger & Birch Financial", "Copper Peak Capital"] },
+      marketing:   { label: "Marketing & Comms", major: "Marketing", entry: "Marketing Coordinator", senior: "Marketing Manager", companies: ["Driftwood Marketing Collective", "Bright Trail Media"] },
+      health:      { label: "Healthcare & Life Sciences", major: "Public Health", entry: "Clinical Research Coordinator", senior: "Clinical Operations Manager", companies: ["Meridian Health Partners", "Alpine Clinical Group"] },
+      engineering: { label: "Engineering & Manufacturing", major: "Mechanical Engineering", entry: "Process Engineer", senior: "Engineering Manager", companies: ["Ironwood Manufacturing", "Granite Systems Engineering"] },
+      nonprofit:   { label: "Nonprofit & Public Sector", major: "Political Science", entry: "Program Associate", senior: "Program Director", companies: ["Open Sky Foundation", "Bitterroot Community Alliance"] },
+      creative:    { label: "Creative & Design", major: "Media Arts", entry: "Junior Designer", senior: "Creative Director", companies: ["Paperplane Studio", "Forge & Flint Design"] },
+      startup:     { label: "Entrepreneurship & Startups", major: "Entrepreneurship", entry: "Founding Associate", senior: "Co-Founder", companies: ["Switchback Ventures", "Basin Technologies"] },
+    };
+    const industryIds = Object.keys(IND);
+
+    const goalsByStage = {
+      peer: ["internship", "resume", "daylife"],
+      grad: ["resume", "path", "network"],
+      alum: ["path", "network", "gradschool", "daylife"],
+    };
+
+    const colorPairs = [
+      ["#7a2331","#591520"], ["#b4872b","#8a6415"], ["#4a5a6b","#2f3c49"],
+      ["#5c7a5a","#3d5a3b"], ["#6a4a7a","#4a2f59"], ["#7a5a3a","#5a3f24"],
+    ];
+
+    // Each industry gets one peer, one recent grad, and one alum,
+    // so every industry + mentor-type combination has someone in it.
+    const stageByRound = ["peer", "grad", "alum"];
+
+    const mentors = [];
+    for (let i = 0; i < 30; i++) {
+      const name = firstNames[i] + " " + lastNames[i];
+      const initials = firstNames[i][0] + lastNames[i][0];
+      const industryId = industryIds[i % industryIds.length];
+      const industry = IND[industryId];
+      const round = Math.floor(i / industryIds.length);
+      const stage = stageByRound[round];
+      const company = industry.companies[round % industry.companies.length];
+      const loc = locations[(i * 3 + 1) % locations.length];
+      const yearsOut = stage === "grad" ? (1 + (i % 2)) : stage === "alum" ? (3 + (i % 6)) : 0;
+
+      const pool = goalsByStage[stage];
+      const g1 = pool[i % pool.length];
+      const g2 = pool[(i + 1) % pool.length];
+      const goals = g1 === g2 ? [g1] : [g1, g2];
+
+      let role, blurb;
+      if (stage === "peer") {
+        role = `Junior, ${industry.major}`;
+        blurb = `Current UM ${industry.major} student exploring ${industry.label.toLowerCase()}. Good for ${GOAL_LABEL[g1].toLowerCase()} or just comparing notes on classes and clubs.`;
+      } else if (stage === "grad") {
+        role = `${industry.entry}, ${company}`;
+        blurb = `${yearsOut} year${yearsOut === 1 ? "" : "s"} out of UM, now a ${industry.entry} at ${company}. Best for ${GOAL_LABEL[g1].toLowerCase()} and ${GOAL_LABEL[g2].toLowerCase()}.`;
+      } else {
+        role = `${industry.senior}, ${company}`;
+        blurb = `${yearsOut}+ years into a ${industry.label.toLowerCase()} career, now ${/^[AEIOU]/.test(industry.senior) ? "an" : "a"} ${industry.senior} at ${company}. Best for ${GOAL_LABEL[g1].toLowerCase()} and the long view on ${GOAL_LABEL[g2].toLowerCase()}.`;
+      }
+
+      const email = (firstNames[i] + "." + lastNames[i]).toLowerCase() + "@example.edu";
+      const linkedin = `https://linkedin.com/in/${firstNames[i].toLowerCase()}-${lastNames[i].toLowerCase()}-${1000 + i}`;
+
+      mentors.push({
+        id: "m" + i,
+        name, initials, role, loc, stage, email, linkedin,
+        stageLabel: stage === "peer" ? "Peer mentor &middot; current student" : stage === "grad" ? `Recent grad &middot; ~${yearsOut} yr${yearsOut === 1 ? "" : "s"} into career` : `Experienced alum &middot; ~${yearsOut} yrs into career`,
+        industries: [industryId],
+        goals,
+        tagLabels: [industry.label, ...goals.map(g => GOAL_LABEL[g])],
+        blurb,
+        avatarColor: `linear-gradient(155deg,${colorPairs[i % colorPairs.length][0]},${colorPairs[i % colorPairs.length][1]})`,
+      });
+    }
+    return mentors;
+  })();
+
+  // ---------- Screens ----------
+  const screens = {
+    welcome: document.getElementById("screen-welcome"),
+    info: document.getElementById("screen-info"),
+    browse: document.getElementById("screen-browse"),
+    review: document.getElementById("screen-review"),
+    success: document.getElementById("screen-success"),
+  };
+  function showScreen(name) {
+    Object.entries(screens).forEach(([k, el]) => {
+      el.hidden = k !== name;
+      el.classList.remove("screen-in");
+    });
+    void screens[name].offsetWidth;
+    screens[name].classList.add("screen-in");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ---------- Applicant state ----------
+  const applicant = { name: "", email: "", major: "", goal: "" };
+  const preferred = new Set(); // up to 3 mentor ids
+  const answers = { interest: new Set(), goal: new Set(), stage: null }; // browse filters only
+
+  document.getElementById("start-btn").addEventListener("click", () => {
+    showScreen("info");
+  });
+
+  document.getElementById("info-back-btn").addEventListener("click", () => showScreen("welcome"));
+
+  document.getElementById("info-next-btn").addEventListener("click", () => {
+    const name = document.getElementById("app-name").value.trim();
+    const email = document.getElementById("app-email").value.trim();
+    const errEl = document.getElementById("app-info-err");
+    const emailOk = /^\S+@\S+\.\S+$/.test(email);
+    if (!name || !emailOk) { errEl.hidden = false; return; }
+    errEl.hidden = true;
+    applicant.name = name;
+    applicant.email = email;
+    applicant.major = document.getElementById("app-major").value.trim();
+    applicant.goal = document.getElementById("app-goal").value.trim();
+    showScreen("browse");
+    renderFilters();
+    renderBrowse();
+  });
+
+  document.getElementById("browse-back-btn").addEventListener("click", () => showScreen("info"));
+
+  document.getElementById("browse-next-btn").addEventListener("click", () => {
+    buildReview();
+    showScreen("review");
+  });
+
+  document.getElementById("review-back-btn").addEventListener("click", () => showScreen("browse"));
+
+  document.getElementById("submit-app-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("submit-app-btn");
+    btn.disabled = true;
+    btn.textContent = "Submitting…";
+    await saveApplication();
+    document.getElementById("success-name").textContent = applicant.name.split(/\s+/)[0] || "there";
+    showScreen("success");
+    btn.disabled = false;
+    btn.textContent = "Submit application";
+  });
+
+  document.getElementById("success-done-btn").addEventListener("click", () => {
+    resetGetMentor();
+    if (window.vantageGoHome) window.vantageGoHome();
+  });
+
+  function resetGetMentor() {
+    preferred.clear();
+    applicant.name = ""; applicant.email = ""; applicant.major = ""; applicant.goal = "";
+    answers.interest.clear(); answers.goal.clear(); answers.stage = null;
+    const nameEl = document.getElementById("app-name"); if (nameEl) nameEl.value = "";
+    const emailEl = document.getElementById("app-email"); if (emailEl) emailEl.value = "";
+    const majorEl = document.getElementById("app-major"); if (majorEl) majorEl.value = "";
+    const goalEl = document.getElementById("app-goal"); if (goalEl) goalEl.value = "";
+    showScreen("welcome");
+  }
+  window.vantageResetGetMentor = resetGetMentor;
+
+  async function saveApplication() {
+    if (!db) return;
+    const preferredMentors = Array.from(preferred).map(id => {
+      const m = MENTORS.find(x => x.id === id);
+      return m ? { id: m.id, name: m.name, role: m.role, linkedin: m.linkedin } : { id };
+    });
+    try {
+      await db.collection("applications").add({
+        name: applicant.name, email: applicant.email, major: applicant.major, goal: applicant.goal,
+        preferredMentors,
+        ts: new Date().toISOString(),
+      });
+    } catch (e) { /* best-effort */ }
+  }
+
+  function buildReview() {
+    const prefNames = Array.from(preferred).map(id => {
+      const m = MENTORS.find(x => x.id === id);
+      return m ? `${m.name} (${m.role})` : id;
+    }).join("; ") || "None selected";
+    const rows = [
+      ["Name", applicant.name],
+      ["Email", applicant.email],
+      ["Major / field of study", applicant.major || "Not added"],
+      ["What you're hoping for", applicant.goal || "Not added"],
+      ["Preferred mentors", prefNames],
+    ];
+    document.getElementById("app-review").innerHTML = rows.map(r => `<dt>${escapeHtml(r[0])}</dt><dd>${escapeHtml(r[1])}</dd>`).join("");
+  }
+
+  // ---------- Browse filter dropdowns ----------
+  const FILTERS = [
+    { key: "interest", label: "Field",       multi: true,  opts: INTERESTS.map(o => ({ id: o.id, t: o.label })) },
+    { key: "goal",     label: "Goals",       multi: true,  opts: GOALS.map(o => ({ id: o.id, t: o.label })) },
+    { key: "stage",    label: "Mentor type", multi: false, opts: STAGES.map(o => ({ id: o.id, t: STAGE_LABEL[o.id] })) },
+  ];
+  const CHECK_SVG = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const CHEV_SVG = '<svg class="chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let openDrop = null;
+
+  function filterValue(f) {
+    if (!f.multi) {
+      const v = answers.stage || "any";
+      return { text: STAGE_LABEL[v], active: v !== "any" };
+    }
+    const set = answers[f.key];
+    if (set.size === 0) return { text: "Any", active: false };
+    if (set.size === 1) return { text: f.opts.find(o => set.has(o.id)).t, active: true };
+    return { text: `${set.size} selected`, active: true };
+  }
+
+  function isChecked(f, id) {
+    return f.multi ? answers[f.key].has(id) : (answers.stage || "any") === id;
+  }
+
+  function refreshButton(drop, f) {
+    const { text, active } = filterValue(f);
+    const btn = drop.querySelector(".fdrop-btn");
+    btn.classList.toggle("active", active);
+    btn.querySelector(".v").textContent = text;
+  }
+
+  function closeDrop() {
+    if (!openDrop) return;
+    openDrop.classList.remove("open");
+    openDrop.querySelector(".fdrop-menu").hidden = true;
+    openDrop.querySelector(".fdrop-btn").setAttribute("aria-expanded", "false");
+    openDrop = null;
+  }
+
+  document.addEventListener("click", (e) => {
+    if (openDrop && !openDrop.contains(e.target)) closeDrop();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && openDrop) {
+      const btn = openDrop.querySelector(".fdrop-btn");
+      closeDrop();
+      btn.focus();
+    }
+  });
+
+  function renderFilters() {
+    const bar = document.getElementById("filter-bar");
+    bar.innerHTML = `<span class="lbl">Filter</span>` + FILTERS.map((f, i) => `
+      <div class="fdrop" data-f="${i}">
+        <button type="button" class="fdrop-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="k">${f.label}:</span><span class="v"></span>${CHEV_SVG}
+        </button>
+        <div class="fdrop-menu ${f.multi ? "" : "single"}" role="${f.multi ? "group" : "radiogroup"}" aria-label="${f.label}" hidden>
+          ${f.opts.map(o => `
+            <button type="button" class="fdrop-item" role="${f.multi ? "checkbox" : "radio"}" data-id="${o.id}" aria-checked="${isChecked(f, o.id)}">
+              <span class="opt-check">${CHECK_SVG}</span><span>${o.t}</span>
+            </button>`).join("")}
+          ${f.multi ? `<div class="fdrop-foot"><button type="button" class="btn-text" data-clear>Clear</button><button type="button" class="btn-text" data-done>Done</button></div>` : ""}
+        </div>
+      </div>`).join("") +
+      `<span class="grow"></span><button type="button" class="btn-text" id="clear-filters-btn">Clear filters</button>`;
+
+    bar.querySelectorAll(".fdrop").forEach(drop => {
+      const f = FILTERS[Number(drop.dataset.f)];
+      const btn = drop.querySelector(".fdrop-btn");
+      const menu = drop.querySelector(".fdrop-menu");
+      refreshButton(drop, f);
+
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const wasOpen = openDrop === drop;
+        closeDrop();
+        if (wasOpen) return;
+        drop.classList.add("open");
+        menu.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        openDrop = drop;
+        menu.classList.remove("align-right");
+        if (menu.getBoundingClientRect().right > window.innerWidth - 16) menu.classList.add("align-right");
+      });
+
+      menu.querySelectorAll(".fdrop-item").forEach(item => {
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const id = item.dataset.id;
+          if (f.multi) {
+            const set = answers[f.key];
+            set.has(id) ? set.delete(id) : set.add(id);
+            item.setAttribute("aria-checked", set.has(id));
+          } else {
+            answers.stage = id;
+            menu.querySelectorAll(".fdrop-item").forEach(b => b.setAttribute("aria-checked", b.dataset.id === id));
+          }
+          refreshButton(drop, f);
+          renderBrowse();
+          if (!f.multi) closeDrop();
+        });
+      });
+
+      const clearBtn = menu.querySelector("[data-clear]");
+      if (clearBtn) clearBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        answers[f.key].clear();
+        menu.querySelectorAll(".fdrop-item").forEach(b => b.setAttribute("aria-checked", "false"));
+        refreshButton(drop, f);
+        renderBrowse();
+      });
+      const doneBtn = menu.querySelector("[data-done]");
+      if (doneBtn) doneBtn.addEventListener("click", (e) => { e.stopPropagation(); closeDrop(); });
+    });
+
+    bar.querySelector("#clear-filters-btn").addEventListener("click", () => {
+      closeDrop();
+      answers.interest.clear();
+      answers.goal.clear();
+      answers.stage = null;
+      renderFilters();
+      renderBrowse();
+    });
+  }
+
+  // ---------- Browse & prefer ----------
+  function matchesFilters(m) {
+    if (answers.interest.size && !m.industries.some(x => answers.interest.has(x))) return false;
+    if (answers.goal.size && !m.goals.some(x => answers.goal.has(x))) return false;
+    if (answers.stage && answers.stage !== "any" && m.stage !== answers.stage) return false;
+    return true;
+  }
+
+  function cardHtml(m) {
+    const isPref = preferred.has(m.id);
+    const capReached = preferred.size >= 3 && !isPref;
+    return `
+      <div class="card" data-id="${m.id}">
+        <div class="card-top">
+          <div class="avatar" style="background:${m.avatarColor}">${m.initials}</div>
+          <div class="card-id">
+            <p class="name">${m.name}</p>
+            <p class="role">${m.role}</p>
+            <p class="loc">${m.loc} &middot; ${m.stageLabel}</p>
+          </div>
+        </div>
+        <div class="tag-row">${m.tagLabels.map(t => `<span class="tag">${t}</span>`).join("")}</div>
+        <p class="why" style="margin-bottom:0">${m.blurb}</p>
+        <div class="card-contact">
+          <a href="${m.linkedin}" target="_blank" rel="noopener" class="contact-link">&#128279; View LinkedIn (optional)</a>
+        </div>
+        <div class="card-actions" data-actions>
+          <button type="button" class="${isPref ? "btn-req" : "btn-ghost"}" data-action="prefer" ${capReached ? "disabled" : ""}>${isPref ? "✓ Preferred" : (capReached ? "You’ve picked 3" : "+ Prefer this mentor")}</button>
+        </div>
+      </div>`;
+  }
+
+  function wireCard(card) {
+    const id = card.dataset.id;
+    const btn = card.querySelector('[data-action="prefer"]');
+    btn.addEventListener("click", () => {
+      if (preferred.has(id)) preferred.delete(id);
+      else {
+        if (preferred.size >= 3) return;
+        preferred.add(id);
+      }
+      renderBrowse();
+    });
+  }
+
+  function updatePreferCount() {
+    const el = document.getElementById("prefer-count");
+    if (el) el.textContent = `${preferred.size} of 3 selected`;
+    document.getElementById("browse-next-btn").disabled = preferred.size === 0;
+  }
+
+  function renderBrowse() {
+    const resultsEl = document.getElementById("results");
+    const list = MENTORS.filter(matchesFilters);
+    const head = `<div class="results-head"><h2>Mentor pool</h2><span class="count">${list.length} of ${MENTORS.length} mentors</span></div>`;
+    resultsEl.innerHTML = head + (list.length ? list.map(m => cardHtml(m)).join("") : '<p class="dash-empty">No mentors match these filters.</p>');
+    resultsEl.querySelectorAll(".card").forEach(wireCard);
+    updatePreferCount();
+  }
+})();
+
+
+(function(){
+  var IND=["Strategy & Consulting","Tech & Software","Data & AI","Finance & Accounting","Marketing & Comms","Healthcare & Life Sciences","Engineering & Manufacturing","Nonprofit & Public Sector","Creative & Design","Entrepreneurship & Startups"];
+  var GOAL=["Finding an internship","Resume & interview prep","Career path advice","Grad school advice","Networking & intros","Day-in-the-life insight"];
+  var DAYS=["Mon","Tue","Wed","Thu","Fri"],TIMES=["9:00 AM","11:30 AM","1:00 PM","2:30 PM","4:00 PM"];
+  var $=function(id){return document.getElementById(id)};
+  var step=0,tried=false;
+  var db=window.VantageFirebase.db;
+
+  function chips(el,list,name){list.forEach(function(t,i){var d=document.createElement("div");d.className="chip";d.innerHTML='<input type="checkbox" name="'+name+'" id="'+name+i+'" value="'+t+'"><label for="'+name+i+'">'+t.replace(/&/g,"&amp;")+'</label>';el.appendChild(d)})}
+  chips($("ind"),IND,"ind");chips($("goal"),GOAL,"goal");
+
+  var g='<tr><th></th>'+DAYS.map(function(d,c){return'<th scope="col"><button type="button" class="hd" data-col="'+c+'">'+d+'</button></th>'}).join("")+'</tr>';
+  TIMES.forEach(function(t,r){g+='<tr><th class="t" scope="row"><button type="button" class="hd" data-row="'+r+'">'+t+'</button></th>'+DAYS.map(function(d,c){return'<td><div class="cell" data-r="'+r+'" data-c="'+c+'"><input type="checkbox" name="slot" value="'+d+' '+t+'" aria-label="'+d+' '+t+'"><span></span></div></td>'}).join("")+'</tr>'});
+  $("grid").innerHTML=g;
+
+  function addExp(){
+    var box=$("exp");if(box.children.length>=3)return;
+    var d=document.createElement("div");d.className="exprow";
+    d.innerHTML='<input type="text" class="et" aria-label="Job or internship title" placeholder="Title, e.g. Marketing Intern">'+
+      '<input type="text" class="ec" aria-label="Company" placeholder="Company">'+
+      '<select class="es" aria-label="Status"><option value="Currently working">Working there now</option><option value="Lined up">Lined up</option><option value="Formerly worked">Worked there before</option></select>'+
+      '<button type="button" class="rm" aria-label="Remove this entry">&times;</button>';
+    box.appendChild(d);
+    $("addexp").hidden=box.children.length>=3;
+  }
+  function exps(){return Array.from(document.querySelectorAll(".exprow")).map(function(r){return{t:r.querySelector(".et").value.trim(),c:r.querySelector(".ec").value.trim(),s:r.querySelector(".es").value}}).filter(function(x){return x.t||x.c})}
+  function expLine(x){return[x.t,x.c].filter(Boolean).join(" at ")}
+  var painting=false,dragging=false;
+  function cellOf(el){var c=el&&el.closest?el.closest(".cell"):null;return c&&$("grid").contains(c)?c:null}
+  function setCell(c,v){var i=c.querySelector("input");if(i.checked!==v)i.checked=v}
+  function slotsChanged(){if(vals("slot").length)$("sloterr").hidden=true;preview()}
+  $("grid").addEventListener("pointerdown",function(e){
+    var c=cellOf(e.target);if(!c||(e.button&&e.button!==0))return;
+    e.preventDefault();dragging=true;painting=!c.querySelector("input").checked;setCell(c,painting);slotsChanged();
+  });
+  document.addEventListener("pointermove",function(e){
+    if(!dragging)return;var c=cellOf(document.elementFromPoint(e.clientX,e.clientY));
+    if(c){setCell(c,painting);slotsChanged()}
+  });
+  function stopDrag(){dragging=false}
+  document.addEventListener("pointerup",stopDrag);document.addEventListener("pointercancel",stopDrag);
+  $("grid").addEventListener("change",slotsChanged);
+  $("grid").addEventListener("click",function(e){
+    var h=e.target.closest(".hd");if(!h)return;
+    var sel=h.dataset.col!==undefined?'.cell[data-c="'+h.dataset.col+'"]':'.cell[data-r="'+h.dataset.row+'"]';
+    var cells=Array.from($("grid").querySelectorAll(sel)),all=cells.every(function(c){return c.querySelector("input").checked});
+    cells.forEach(function(c){setCell(c,!all)});slotsChanged();
+  });
+  $("clearslots").addEventListener("click",function(){document.querySelectorAll('input[name="slot"]').forEach(function(i){i.checked=false});preview()});
+  function vals(n){return Array.from(document.querySelectorAll('input[name="'+n+'"]:checked')).map(function(i){return i.value})}
+  function stage(){return document.querySelector('input[name="stage"]:checked').value}
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+
+  function roleText(){
+    var s=stage(),r=$("role").value.trim(),c=$("company").value.trim();
+    if(s==="peer")return r?"Current student, "+r:"";
+    return r&&c?r+", "+c:(r||c);
+  }
+  function syncStage(){
+    var s=stage();
+    $("rolelbl").textContent=s==="peer"?"Major":"Job title";
+    $("role").placeholder=s==="peer"?"e.g. Marketing":"e.g. Marketing Manager";
+    $("cowrap").hidden=s==="peer";
+  }
+  function preview(){
+    var n=$("name").value.trim(),w=n.split(/\s+/).filter(Boolean);
+    $("pav").textContent=w.length?(w[0][0]+(w.length>1?w[w.length-1][0]:"")).toUpperCase():"?";
+    $("pname").innerHTML=n?esc(n):'<span class="ph">Your name</span>';
+    $("prole").innerHTML=roleText()?esc(roleText()):'<span class="ph">Your role</span>';
+    $("ploc").innerHTML=$("loc").value.trim()?esc($("loc").value.trim()):'<span class="ph">Your city</span>';
+    var t=vals("ind").concat(vals("goal"));
+    $("ptags").innerHTML=t.length?t.map(function(x){return'<span class="tag">'+esc(x)+'</span>'}).join(""):'<span class="ph">Pick your expertise to see tags</span>';
+    var ex=exps();
+    $("pexp").hidden=!ex.length;
+    $("pexp").innerHTML=ex.map(function(x){return"<li><b>"+({"Lined up":"Lined up:","Formerly worked":"Before:"}[x.s]||"Now:")+"</b> "+esc(expLine(x))+"</li>"}).join("");
+    var b=$("bio").value.trim();
+    $("pbio").innerHTML=b?esc(b):'<span class="ph">Your bio appears here</span>';
+    var sl=vals("slot");
+    $("pslots").textContent=sl.length?"Open: "+sl.slice(0,3).join(", ")+(sl.length>3?" +"+(sl.length-3)+" more":""):"No times selected yet";
+    var fr=$("freq").value;
+    $("pfreq").hidden=!fr;$("pfreq").textContent=fr?"Prefers: "+fr:"";
+    $("slotcount").textContent=sl.length+" slot"+(sl.length===1?"":"s")+" selected";
+    var bl=$("bio").value.length;
+    $("biocount").textContent=bl+(bl===1?" character":" characters");
+  }
+
+  function setErr(el,msg){
+    var e=el.parentNode.querySelector(".err");
+    if(msg){el.setAttribute("aria-invalid","true");if(!e){e=document.createElement("div");e.className="err";el.after(e)}e.textContent=msg}
+    else{el.removeAttribute("aria-invalid");if(e)e.remove()}
+  }
+  function validate(s,show){
+    var ok=true,sec=document.querySelector('[data-step="'+s+'"]'),first=null;
+    sec.querySelectorAll("[data-req]").forEach(function(el){
+      if(el.closest("[hidden]"))return;
+      var v=el.value.trim(),bad=!v||(el.type==="email"&&!/^\S+@\S+\.\S+$/.test(v));
+      if(show)setErr(el,bad?(el.type==="email"&&v?"Enter an email like name@example.com.":"This is required."):"");
+      if(bad){ok=false;first=first||el}
+    });
+    function grp(n,id,min,max,msg){var c=vals(n).length,bad=c<min||c>max,e=$(id);if(show){e.hidden=!bad;e.textContent=bad?msg:""}if(bad){ok=false}}
+    if(s===1){grp("ind","inderr",1,3,"Choose between 1 and 3 fields.");grp("goal","goalerr",1,6,"Choose at least one thing you can help with.")}
+    if(s===2){grp("slot","sloterr",1,99,"Mark at least one time students can book.")}
+    if(show&&first)first.focus();
+    return ok;
+  }
+
+  function review(){
+    var rows=[["Name",$("name").value],["Email",$("email").value],["Role",roleText()],["City",$("loc").value],["LinkedIn",$("linkedin").value||"Not added"],["Fields",vals("ind").join(", ")],["Can help with",vals("goal").join(", ")],["Internships and jobs",exps().map(function(x){return expLine(x)+" ("+({"Lined up":"lined up","Formerly worked":"worked there before"}[x.s]||"working there now")+")"}).join("; ")||"None added"],["Availability",vals("slot").length+" weekly slots, up to "+$("cap").value+" calls a month"],["Meeting frequency",$("freq").value||"No preference"],["Bio",$("bio").value]];
+    $("review").innerHTML=rows.map(function(r){return"<dt>"+r[0]+"</dt><dd>"+esc(r[1])+"</dd>"}).join("");
+  }
+  function show(n){
+    step=n;
+    document.querySelectorAll("[data-step]").forEach(function(s){s.hidden=Number(s.dataset.step)!==n});
+    Array.from($("steps").children).forEach(function(li,i){li.className=i===n?"on":i<n?"done":"";if(i===n)li.setAttribute("aria-current","step");else li.removeAttribute("aria-current")});
+    if(n===3){review();$("steps").children[2].className="done"}
+    $("back").disabled=n===0;
+    $("next").textContent=n===3?"Submit sign-up":"Continue";
+    $("main").scrollIntoView({block:"start"});
+    var h=document.querySelector('[data-step="'+n+'"] h2');h.tabIndex=-1;h.focus({preventScroll:true});
+  }
+
+  async function saveSignup(){
+    if(!db)return;
+    try{
+      await db.collection("mentor_signups").add({
+        name: $("name").value.trim(),
+        email: $("email").value.trim(),
+        stage: stage(),
+        role: roleText(),
+        loc: $("loc").value.trim(),
+        linkedin: $("linkedin").value.trim(),
+        industries: vals("ind"),
+        goals: vals("goal"),
+        experience: exps(),
+        slots: vals("slot"),
+        callsPerMonth: $("cap").value,
+        meetingFrequency: $("freq").value,
+        bio: $("bio").value.trim(),
+        ts: new Date().toISOString(),
+      });
+    }catch(e){ /* best-effort */ }
+  }
+  $("f").addEventListener("submit",function(e){
+    e.preventDefault();
+    if(!validate(step,true))return;
+    if(step<3){show(step+1);return}
+    $("dname").textContent=$("name").value.trim().split(/\s+/)[0];
+    $("f").hidden=true;$("steps").hidden=true;$("done").hidden=false;
+    $("main").scrollIntoView({block:"start"});
+    saveSignup();
+  });
+  $("back").addEventListener("click",function(){if(step>0)show(step-1)});
+  $("again").addEventListener("click",function(){$("f").reset();$("exp").innerHTML="";addExp();$("f").hidden=false;$("steps").hidden=false;$("done").hidden=true;syncStage();preview();show(0)});
+  $("f").addEventListener("input",function(e){if(e.target.name==="stage")syncStage();if(e.target.hasAttribute("aria-invalid"))validate(step,true);preview()});
+  $("f").addEventListener("change",function(e){
+    if(e.target.name==="ind"&&vals("ind").length>3){e.target.checked=false}
+    preview();
+  });
+  $("addexp").addEventListener("click",function(){addExp();var r=$("exp").lastChild.querySelector(".et");r.focus();preview()});
+  $("exp").addEventListener("click",function(e){
+    var b=e.target.closest(".rm");if(!b)return;
+    var box=$("exp");
+    if(box.children.length===1){box.querySelectorAll("input").forEach(function(i){i.value=""})}
+    else{b.parentNode.remove()}
+    $("addexp").hidden=box.children.length>=3;preview();
+  });
+  addExp();syncStage();preview();
+
+  window.vantageResetBecomeMentor = function(){
+    $("f").reset();$("exp").innerHTML="";addExp();
+    $("f").hidden=false;$("steps").hidden=false;$("done").hidden=true;
+    syncStage();preview();show(0);
+  };
+})();
+
+
+(function(){
+  const pages = {
+    home: document.getElementById("page-home"),
+    "get-mentor": document.getElementById("page-get-mentor"),
+    "become-mentor": document.getElementById("page-become-mentor"),
+    admin: document.getElementById("page-admin"),
+  };
+  const siteHomeBtn = document.getElementById("site-home-btn");
+  const siteAdminBtn = document.getElementById("site-admin-btn");
+
+  function showPage(name) {
+    Object.entries(pages).forEach(([k, el]) => { el.hidden = k !== name; });
+    siteHomeBtn.hidden = name === "home";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goHome() {
+    if (window.vantageResetGetMentor) window.vantageResetGetMentor();
+    if (window.vantageResetBecomeMentor) window.vantageResetBecomeMentor();
+    showPage("home");
+  }
+  window.vantageGoHome = goHome;
+
+  document.getElementById("cta-get-mentor").addEventListener("click", () => {
+    if (window.vantageResetGetMentor) window.vantageResetGetMentor();
+    showPage("get-mentor");
+  });
+  document.getElementById("cta-become-mentor").addEventListener("click", () => {
+    if (window.vantageResetBecomeMentor) window.vantageResetBecomeMentor();
+    showPage("become-mentor");
+  });
+  siteHomeBtn.addEventListener("click", goHome);
+  if (siteAdminBtn) siteAdminBtn.addEventListener("click", () => showPage("admin"));
+
+  function routeFromHash() {
+    const h = location.hash.replace("#", "").toLowerCase();
+    if (h === "apply") {
+      if (window.vantageResetGetMentor) window.vantageResetGetMentor();
+      showPage("get-mentor");
+      const startBtn = document.getElementById("start-btn");
+      if (startBtn) startBtn.click();
+    } else if (h === "admin") {
+      showPage("admin");
+    }
+  }
+  routeFromHash();
+  window.addEventListener("hashchange", routeFromHash);
+})();
+</script>
+
+</body></html>
