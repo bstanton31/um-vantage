@@ -1327,12 +1327,11 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
   const INTEREST_LABEL = Object.fromEntries(INTERESTS.map(i => [i.id, i.label]));
 
   const STAGES = [
-    { id: "peer", t: "A peer mentor",        d: "A current student a year or two ahead of me" },
     { id: "grad", t: "A recent grad",        d: "Someone who just started their career, close to the transition" },
     { id: "alum", t: "An experienced alum",  d: "Someone several years in who can talk long-term trajectory" },
     { id: "any",  t: "No preference",        d: "Show me whoever's the best overall fit" },
   ];
-  const STAGE_LABEL = { peer: "Peer mentor", grad: "Recent grad", alum: "Experienced alum", any: "Any mentor type" };
+  const STAGE_LABEL = { grad: "Recent grad", alum: "Experienced alum", any: "Any mentor type" };
 
   // ---------- 30 illustrative mentors (not real people) ----------
   // Easy swap later: once Traci sends the real 30, this array (or the
@@ -1357,8 +1356,7 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
     const industryIds = Object.keys(IND);
 
     const goalsByStage = {
-      peer: ["internship", "resume", "daylife"],
-      grad: ["resume", "path", "network"],
+      grad: ["internship", "resume", "path", "network"],
       alum: ["path", "network", "gradschool", "daylife"],
     };
 
@@ -1367,9 +1365,10 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
       ["#5c7a5a","#3d5a3b"], ["#6a4a7a","#4a2f59"], ["#7a5a3a","#5a3f24"],
     ];
 
-    // Each industry gets one peer, one recent grad, and one alum,
-    // so every industry + mentor-type combination has someone in it.
-    const stageByRound = ["peer", "grad", "alum"];
+    // Every mentor is a working professional — either a recent grad or an
+    // experienced alum. Each industry gets at least one of each, so every
+    // industry + mentor-type combination has someone in it.
+    const stageByRound = ["grad", "alum", "alum"];
 
     const mentors = [];
     for (let i = 0; i < 30; i++) {
@@ -1381,7 +1380,7 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
       const stage = stageByRound[round];
       const company = industry.companies[round % industry.companies.length];
       const loc = locations[(i * 3 + 1) % locations.length];
-      const yearsOut = stage === "grad" ? (1 + (i % 2)) : stage === "alum" ? (3 + (i % 6)) : 0;
+      const yearsOut = stage === "grad" ? (1 + (i % 2)) : (3 + (i % 6));
 
       const pool = goalsByStage[stage];
       const g1 = pool[i % pool.length];
@@ -1389,10 +1388,7 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
       const goals = g1 === g2 ? [g1] : [g1, g2];
 
       let role, blurb;
-      if (stage === "peer") {
-        role = `Junior, ${industry.major}`;
-        blurb = `Current UM ${industry.major} student exploring ${industry.label.toLowerCase()}. Good for ${GOAL_LABEL[g1].toLowerCase()} or just comparing notes on classes and clubs.`;
-      } else if (stage === "grad") {
+      if (stage === "grad") {
         role = `${industry.entry}, ${company}`;
         blurb = `${yearsOut} year${yearsOut === 1 ? "" : "s"} out of UM, now a ${industry.entry} at ${company}. Best for ${GOAL_LABEL[g1].toLowerCase()} and ${GOAL_LABEL[g2].toLowerCase()}.`;
       } else {
@@ -1406,7 +1402,7 @@ input[aria-invalid=true],select[aria-invalid=true],textarea[aria-invalid=true]{b
       mentors.push({
         id: "m" + i,
         name, initials, role, loc, stage, email, linkedin,
-        stageLabel: stage === "peer" ? "Peer mentor &middot; current student" : stage === "grad" ? `Recent grad &middot; ~${yearsOut} yr${yearsOut === 1 ? "" : "s"} into career` : `Experienced alum &middot; ~${yearsOut} yrs into career`,
+        stageLabel: stage === "grad" ? `Recent grad &middot; ~${yearsOut} yr${yearsOut === 1 ? "" : "s"} into career` : `Experienced alum &middot; ~${yearsOut} yrs into career`,
         industries: [industryId],
         goals,
         tagLabels: [industry.label, ...goals.map(g => GOAL_LABEL[g])],
